@@ -1,0 +1,62 @@
+name: update-prices
+
+on:
+  schedule:
+    # 평일(UTC 기준) 매시 17분. 정각은 GitHub가 가장 붐비는 시간이라 피했습니다.
+    - cron: "17 * * * 1-5"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "normal=장중 시장만 / all=전체 / backfill=과거 1년 포함 / verify=종목코드 점검"
+        type: choice
+        default: all
+        options: [normal, all, backfill, verify]
+
+permissions:
+  contents: write        # 하루 한 번 실행기록 파일을 커밋(60일 비활성 시 자동 중지되는 것을 방지)
+
+concurrency:
+  group: update-prices
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install dependencies (항상 최신 yfinance 사용)
+        run: pip install --upgrade -r scripts/requirements.txt
+
+      - name: Fetch prices
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python scripts/fetch_prices.py --mode "${{ github.event.inputs.mode || 'normal' }}"
+
+      - name: Upload verify report
+        if: ${{ github.event.inputs.mode == 'verify' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-report
+          path: verify_report.csv
+
+      - name: Daily heartbeat commit
+        if: ${{ github.event_name == 'schedule' }}
+        run: |
+          HOUR=$(date -u +%H)
+          if [ "$HOUR" = "22" ]; then
+            date -u +"%Y-%m-%dT%H:%M:%SZ" > data/last_run.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/last_run.txt
+            git commit -m "chore: heartbeat [skip ci]" || exit 0
+            git push || true
+          fi
