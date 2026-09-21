@@ -6,7 +6,7 @@
 //  ※ secret key(sb_secret_...)는 절대 이 파일에 넣지 마세요. GitHub Secrets 에만 넣습니다.
 // ─────────────────────────────────────────────────────────────
 window.APP_CONFIG = {
-  SUPABASE_URL: "https://YOUR-PROJECT.supabase.co",
-  SUPABASE_KEY: "sb_publishable_여기에_붙여넣기",
+  SUPABASE_URL: "https://rbbrhuemllfsptavwpyz.supabase.co",
+  SUPABASE_KEY: "sb_publishable_wOAtCrp0g8WmIPqtWOwErA_E6xYKOaR",
   APP_TITLE: "모의투자 원장",
 };
